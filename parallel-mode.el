@@ -72,7 +72,7 @@ This is `match-string' data
   (occur-1 browse-url-botton-regexp "\\&" (list (current-buffer)) (get-buffer-create " occur-output"))
   (remove-hook 'occur-hook #'goto-address-mode))
 
-(defun parallel-display-span (buffer)
+(defun parallel-make-document (buffer)
   "Render URLS on the 'span: ' region on their own hidden '#output' buffer then
 insert their content to BUFFER"
   (while (progn
@@ -80,11 +80,11 @@ insert their content to BUFFER"
 	   (save-match-data
 	     (eww-parse-content (format "%s" (match-string 1)))
      	     (forward-line 1))
-	   (let* ((buf (get-buffer (concat " " (match-string 1) "#output")))
+	   (let* ((url-buf (get-buffer (concat " " (match-string 1) "#output")))
 		  (desired-beg (string-to-number (match-string 5)))
 		  (desired-leng (string-to-number (match-string 6)))
 		  (desired-end (+ desired-beg desired-leng))
-		  (valid-region (buffer-size buf))
+		  (valid-region (buffer-size url-buf))
 		  ;; Check if desired-beg is in range of the size of BUFFER,
 		  ;; if not, fallbacks on the beginning of BUFFER.
 		  (region-beg (if (< desired-beg valid-region)
@@ -98,22 +98,23 @@ insert their content to BUFFER"
 		  (region-end (if (< (- desired-end 1) valid-region)
 				  desired-end
 				(+ 1 valid-region))))
+	     (add-text-properties region-beg region-end '(mouse-face highlight) url-buf)
 	     (with-current-buffer (get-buffer-create buffer)
-	       (insert-buffer-substring buf region-beg region-end)
+	       (insert-buffer-substring url-buf region-beg region-end)
 	       (fill-paragraph (point-min) (point-max))))
     	   ;; return nil when point reached the end of buffer
 	   ;; or when there was "xanalink: " under point.
 	   ;; In effect, stops the `while' function
 	   (and (not (looking-at "xanalink: "))
 		(not (eq (point) (point-max)))))))
-;; (defun parallel-display-facet ()
+  ;; (defun parallel-display-facet ()
 ;;   (interactive)
 (defun parallel ()
   "Start `parallel' session."
   (interactive)
   (cond ((eq major-mode 'edl-mode)
 	 (goto-char (point-min))
-	 (parallel-display-span "*paralleldoc*"))
+	 (parallel-make-document "*paralleldoc*"))
 	(t (user-error "This is not an EDL file."))))
 
 (provide 'parallel-mode.el)
