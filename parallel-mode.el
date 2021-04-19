@@ -29,6 +29,7 @@
 (require 'shr)
 (require 'eww)
 (require 'url)
+(require 'org)
 
 (defface xanalink
   '((t :box (:line-width 3 :color "tomato")))
@@ -38,7 +39,7 @@
   "Regular expression that matches URLS.")
 
 (defcustom parallel-url-regexp-span
-  (concat "^span: " parallel-url-regexp ",start=\\([0-9]*\\)?,length=\\([0-9]*\\)?")
+  (concat parallel-url-regexp ",start=\\([0-9]*\\)?,length=\\([0-9]*\\)?")
   "Regular expression that matches URLS with span.  
 This is `match-string' data
 `(match-string 5)' matches NUM after 'start='  
@@ -59,22 +60,31 @@ This is `match-string' data
     (url-retrieve (eww--dwim-expand-url url) 'eww-render
        		  (list (eww--dwim-expand-url url) nil (get-buffer-create buf)))))
 
+(defun follow-xanalink (target point)
+  (save-current-buffer
+    (switch-to-buffer-other-window target)
+    (goto-char point)))
+  
 ;;;###autoload
 (define-derived-mode edl-mode fundamental-mode "EDL"
   "Major mode for reading EDL format"
   (setq font-lock-defaults '(edl-highlights)))
 
 ;; Move this to somewhere else?
-(defun occur-list-urls ()
+(defun occur-list-urls (&optional to-buffer)
   "Produce buttonised list of all URLs in the current buffer."
   (interactive)
-  (add-hook 'occur-hook #'goto-address-mode)
-  (occur-1 browse-url-botton-regexp "\\&" (list (current-buffer)) (get-buffer-create " occur-output"))
-  (remove-hook 'occur-hook #'goto-address-mode))
+  (let ((to-buffer (or to-buffer
+		       (current-buffer))))
+    (add-hook 'occur-hook #'goto-address-mode)
+    (occur-1 browse-url-botton-regexp "\\&" (list (current-buffer)) (get-buffer-create " occur-output"))
+    (remove-hook 'occur-hook #'goto-address-mode)))
 
-(defun parallel-make-document (buffer)
+(defun parallel-make-sourcedoc (buffer)
   "Render URLS on the 'span: ' region on their own hidden '#output' buffer then
 insert their content to BUFFER"
+  (with-current-buffer (get-buffer-create buffer)
+    (erase-buffer))
   (while (progn
 	   (re-search-forward parallel-url-regexp-span nil t)
 	   (save-match-data
@@ -92,29 +102,30 @@ insert their content to BUFFER"
 				(point-min)))
 		  ;; Check if desired-end is in range of the size of BUFFER,
 		  ;; if not, fallbacks on the end of BUFFER.
-		  ;; NOTE: the end of BUFFER in this case is just
-		  ;; 1 plus the size of BUFFER, which is equivalent to
-		  ;; calling `(point-max) on the specified BUFFER.
 		  (region-end (if (< (- desired-end 1) valid-region)
 				  desired-end
 				(+ 1 valid-region))))
-	     (add-text-properties region-beg region-end '(mouse-face highlight) url-buf)
 	     (with-current-buffer (get-buffer-create buffer)
+	       (insert "\n")
 	       (insert-buffer-substring url-buf region-beg region-end)
-	       (fill-paragraph (point-min) (point-max))))
+	       (fill-paragraph (point-min) (point-max))
+	       (org-mode))
+	     (with-current-buffer url-buf
+	       (setq buffer-read-only t)))
+	     ;; (with-current-buffer url-buf
+     	     ;;   (make-text-button region-beg region-end)))
     	   ;; return nil when point reached the end of buffer
 	   ;; or when there was "xanalink: " under point.
 	   ;; In effect, stops the `while' function
-	   (and (not (looking-at "xanalink: "))
+	   (and (not (looking-at-p "xanalink: "))
 		(not (eq (point) (point-max)))))))
-  ;; (defun parallel-display-facet ()
-;;   (interactive)
+
 (defun parallel ()
   "Start `parallel' session."
   (interactive)
   (cond ((eq major-mode 'edl-mode)
 	 (goto-char (point-min))
-	 (parallel-make-document "*paralleldoc*"))
+	 (parallel-make-sourcedoc "doc.org"))
 	(t (user-error "This is not an EDL file."))))
 
 (provide 'parallel-mode.el)
