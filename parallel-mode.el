@@ -70,16 +70,6 @@ This is `match-string' data
   "Major mode for reading EDL format"
   (setq font-lock-defaults '(edl-highlights)))
 
-;; Move this to somewhere else?
-(defun occur-list-urls (&optional to-buffer)
-  "Produce buttonised list of all URLs in the current buffer."
-  (interactive)
-  (let ((to-buffer (or to-buffer
-		       (current-buffer))))
-    (add-hook 'occur-hook #'goto-address-mode)
-    (occur-1 browse-url-botton-regexp "\\&" (list (current-buffer)) (get-buffer-create " occur-output"))
-    (remove-hook 'occur-hook #'goto-address-mode)))
-
 (defun parallel-make-sourcedoc (buffer)
   "Render URLS on the 'span: ' region on their own hidden '#output' buffer then
 insert their content to BUFFER"
