@@ -1,0 +1,4 @@
+* Notice
+  This project is dropped until further notice. I'm still new to Emacs
+  and programming in general if anyone wants to, feel free to fork
+  this project or issue a PR, thanks for reading.
